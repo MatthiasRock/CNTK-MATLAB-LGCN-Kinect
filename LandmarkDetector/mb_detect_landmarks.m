@@ -39,6 +39,9 @@ function [landmarks,varargout] = mb_detect_landmarks(Images,BBoxes,ModelFitting,
         % You can change this
         PrintFramerate  = true;
         Device          = 'GPU';        % 'GPU' / 'CPU'
+        
+        % If you want to use a BrainScript model:
+        %   The kernel must have the shape 45x45x1 and NOT 1x45x45, otherwise this will not work
         ModelFileName   = 'model_128_filters.21';
         
         % Get absolute model file path

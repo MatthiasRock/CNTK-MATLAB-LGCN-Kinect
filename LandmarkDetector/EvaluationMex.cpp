@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Tested with CNTK 2.3.1, CNTK 2.4 and MATLAB R2016b, R2018a                                                              //
+// Tested with CNTK 2.3.1, CNTK 2.4 and MATLAB R2016b, R2018a                                                  //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // If you use MATLAB R2016b:                                                                                   //
 //		- Comment the Makro 'MATLAB_R2018a'                                                                    //
@@ -77,9 +77,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	// Input value
 	CNTK::ValuePtr inputValue = CNTK::MakeSharedObject<CNTK::Value>(CNTK::MakeSharedObject<CNTK::NDArrayView>(inputShape, inputData, true));
 
-	// Get shape of output node
-	CNTK::NDShape outputShape = outputNode.Shape().AppendShape({nSamples});
-
 	// Output value
 	CNTK::ValuePtr outputValue;
 
@@ -93,13 +90,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	//#                  Read output                   #
 	//##################################################
 
-    std::vector<float> outputData(outputShape.TotalSize());
+	// Get size of the output data
+	size_t outputDataSize = nSamples*outputNode.Shape().TotalSize(); 
+
+	std::vector<float> outputData(outputDataSize);
 	std::vector<float>::iterator outputData_it = outputData.begin();
 
-	CNTK::NDArrayViewPtr ArrayOutput = CNTK::MakeSharedObject<CNTK::NDArrayView>(outputShape, outputData, false);
+	outputValue = output_data_map[outputNode];
+
+	CNTK::NDArrayViewPtr ArrayOutput = CNTK::MakeSharedObject<CNTK::NDArrayView>(outputValue->Shape(), outputData, false);
 
 	// Copy output values into the vector
-	outputValue = output_data_map[outputNode];
 	ArrayOutput->CopyFrom(*outputValue->Data());
 
 	std::size_t nLandmarks  = outputData.size() / (nRows*nCols*nSamples);
