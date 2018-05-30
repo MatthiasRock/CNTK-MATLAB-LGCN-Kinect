@@ -20,8 +20,8 @@ function main()
   	clear data2minibatch;
     
     % Get the indices of the most relevant kinect landmarks
-    load('kinect_relevant_LMs.mat');
-    relevant_LMs = sort([kinect_ginline,kinect_lefteye,kinect_righteye,kinect_lefteyebrow,kinect_righteyebrow,kinect_mouth,kinect_nose])';
+    %load('kinect_relevant_LMs.mat');
+    %relevant_LMs = sort([kinect_ginline,kinect_lefteye,kinect_righteye,kinect_lefteyebrow,kinect_righteyebrow,kinect_mouth,kinect_nose])';
     
     % Create Kinect 2 object and initialize it
     k2 = Kin2('color','HDface');
@@ -57,23 +57,32 @@ function main()
     framerate_current         = 0;
     frames_per_time           = 0;
     
-    % Figure
+    %% Figure initialization
+    
     c.h  = figure;
     c.ax = axes;
-    c.im = imshow(255*ones(img_size,'uint8'),[]);
-    text(c.ax,img_size(2)/2,img_size(1)/2,'Initializing...','FontSize',25,'HorizontalAlignment','center','VerticalAlignment','middle');
+    c.im = imshow(255*ones(img_size,'uint8'));
     
-  	set(c.h,'units','normalized','outerposition',[0 0 1 1]);    % Set the figure to full screen
+    set(c.h,'units','normalized','outerposition',[0 0 1 1]);    % Set the figure to full screen
   	set(c.ax,'Unit','normalized','Position',[0 0 1 1]);         % Set the axes to full screen
   	set(c.h,'menubar','none');                                  % Hide the toolbar
   	set(c.h,'NumberTitle','off');                               % Hide the title
     
-    % Exit loop when a key is pressed
-    setappdata(gcf,'quit',false)
-    set(gcf,'keypress','setappdata(gcf,''quit'',true)');
+    info_initText   = text(c.ax,img_size(2)/2,img_size(1)/2,'Initializing...','FontSize',25,'HorizontalAlignment','center','VerticalAlignment','middle');
+    info_framerates = text(c.ax,10,10,'','FontSize',20,'Color','yellow','HorizontalAlignment','left','VerticalAlignment','top');
     
-    % Get the current parallel pool
-    p = gcp();
+    % Initialize bounding boxes
+    h_rect          = cell(1,max_numFaces);
+    h_landmarksKin  = cell(1,max_numFaces);
+    h_landmarks     = cell(1,max_numFaces);
+    
+    for fa = 1:max_numFaces
+        h_rect{fa} = rectangle(c.ax,'Position',[0,0,0,0],'EdgeColor','y','LineWidth',4);
+        hold on
+        h_landmarksKin{fa}  = plot(c.ax,0,0,'y.');
+        h_landmarks{fa}     = plot(c.ax,0,0,'r*');
+        hold off
+    end
 
     %% Load a test image (multiple times) into the buffer to run the first two minibatches with CNTK in the background
     
@@ -95,6 +104,13 @@ function main()
     
     %%
     
+    % Exit loop when a key is pressed
+    setappdata(gcf,'quit',false)
+    set(gcf,'keypress','setappdata(gcf,''quit'',true)');
+    
+    % Get the current parallel pool
+    p = gcp();
+    
     t1 = tic;
     t2 = t1;
 
@@ -109,7 +125,7 @@ function main()
         end
         
         % Determine if the current frame from the kinect shall be processed
-        if toc(t2) >= 0.98/(framerate_current+1)
+        if toc(t2) >= 0.85/(framerate_current+1)
             t2 = tic;
             process_frame = true;
         else
@@ -140,7 +156,7 @@ function main()
 
                 % If the size of the bounding box is zero
                 if faces(fa).FaceBox(3)-faces(fa).FaceBox(1) == 0 || faces(fa).FaceBox(4)-faces(fa).FaceBox(2) == 0
-                    %continue;
+                    continue;
                 end
                 j = j + 1;
 
@@ -247,13 +263,11 @@ function main()
                 
                 % If this is not one of the initial images
                 if numberFrames > init_numImages
-                    c.im  = imshow(image,'Parent',c.ax);
-
-                    text(c.ax,10,20,sprintf('Current delay: %.1f Seconds',toc(buf1_time(buf1_indexPop))),'FontSize',20,'Color','yellow');
-                    text(c.ax,10,50,sprintf('Current framerate: %.1f Frames/s',framerate_current),'FontSize',20,'Color','yellow');
-                    text(c.ax,10,80,sprintf('Entire eval function: %.1f Frames/s',framerate_EntireFunction),'FontSize',20,'Color','yellow');
-                    text(c.ax,10,110,sprintf('Total processing: %.1f Frames/s',framerate_TotalProcessing),'FontSize',20,'Color','yellow');
-                    text(c.ax,10,140,sprintf('CNTK: %.1f Frames/s',framerate_CNTK),'FontSize',20,'Color','yellow');
+                    %c.im  = imshow(image,'Parent',c.ax);
+                    set(c.im,'CData',image);    % Show current image
+                    
+                    info_initText.String    = '';
+                    info_framerates.String  = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s\nEntire eval function: %.1f Frames/s\nTotal processing: %.1f Frames/s\nCNTK: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current,framerate_EntireFunction,framerate_TotalProcessing,framerate_CNTK);
 
                     landmarks_plt = buf2_landmarks{buf2_indexPop};
 
@@ -261,22 +275,30 @@ function main()
                     for fa = 1:size(landmarks_plt,1)
                         
                         if ShowBoundingBox
-                            %bbox = buf1_bboxes{buf1_indexPop}{fa};
                             bbox = buf1_bboxes(fa,:,buf1_indexPop);
-                            rectangle(c.ax,'Position',[bbox(1),bbox(2),bbox(3),bbox(3)],'EdgeColor','y','LineWidth',4)
+                            h_rect{fa}.Position = [bbox(1),bbox(2),bbox(3),bbox(3)];
                         end
 
                         % If the Kinect landmarks shall be displayed
                         if ShowKinectLMs
                             model = buf1_kinFaces{buf1_indexPop}(fa).FaceModel;
                             colorCoords = k2.mapCameraPoints2Color(model');
-                            viscircles(c.ax,colorCoords,ones(1347,1)*0.2,'EdgeColor','y');
-                            viscircles(c.ax,colorCoords(relevant_LMs,:),ones(size(relevant_LMs,1),1)*1.2,'EdgeColor','b');
+                            h_landmarksKin{fa}.XData = colorCoords(:,1);
+                            h_landmarksKin{fa}.YData = colorCoords(:,2);
                         end
-
-                        hold on
-                        plot(c.ax,landmarks_plt{fa}(:,1),landmarks_plt{fa}(:,2),'r*');
-                        hold off
+                        
+                        % Plot landmarks
+                        h_landmarks{fa}.XData = landmarks_plt{fa}(:,1);
+                        h_landmarks{fa}.YData = landmarks_plt{fa}(:,2);
+                    end
+                    
+                    % Hide bounding boxes and faces for all of the other possible faces
+                    for fa = fa+1:max_numFaces
+                        h_rect{fa}.Position = [0,0,0,0];
+                        h_landmarksKin{fa}.XData = 0;
+                        h_landmarksKin{fa}.YData = 0;
+                        h_landmarks{fa}.XData = 0;
+                        h_landmarks{fa}.YData = 0;
                     end
                 end
                 numberFrames    = numberFrames + 1;
@@ -290,13 +312,22 @@ function main()
             end
         % If no face was detected on the current frame
         elseif buf1_numElem > 0 && process_frame
-            c.im = imshow(buf1_img(:,:,:,buf1_indexPop),'Parent',c.ax);
+            set(c.im,'CData',buf1_img(:,:,:,buf1_indexPop));
             numberFrames    = numberFrames + 1;
             frames_per_time = frames_per_time + 1;
             
-            text(c.ax,10,20,sprintf('Current delay: %.1f Seconds',toc(buf1_time(buf1_indexPop))),'FontSize',20,'Color','yellow');
-            text(c.ax,10,50,sprintf('Current framerate: %.1f Frames/s',framerate_current),'FontSize',20,'Color','yellow');
-            
+            info_initText.String    = '';
+            info_framerates.String  = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current);
+             
+            % Hide bounding boxes and faces for all of the possible faces
+            for fa = 1:max_numFaces
+                h_rect{fa}.Position = [0,0,0,0];
+                h_landmarksKin{fa}.XData = 0;
+                h_landmarksKin{fa}.YData = 0;
+                h_landmarks{fa}.XData = 0;
+                h_landmarks{fa}.YData = 0;
+            end
+
             buf1_indexPop = mod(buf1_indexPop,buf_size) + 1;
             buf1_numElem  = buf1_numElem - 1;
         end
