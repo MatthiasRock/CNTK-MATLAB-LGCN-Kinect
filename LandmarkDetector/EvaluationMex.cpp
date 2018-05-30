@@ -1,17 +1,13 @@
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Tested with CNTK 2.3.1, CNTK 2.4 and MATLAB R2016b, R2018a                                                  //
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// If you use MATLAB R2016b:                                                                                   //
-//		- Comment the Makro 'MATLAB_R2018a'                                                                    //
-//		- Compilation in MATLAB: mex -LC:\repos\cntk\x64\Release -lCntk.Core-2.4.lib EvaluationMex.cpp         //
-// If you use MATLAB R2018a:                                                                                   //
-//		- Uncomment the Makro 'MATLAB_R2018a'                                                                  //
-//		- Compilation in MATLAB: mex -LC:\repos\cntk\x64\Release -R2018a -lCntk.Core-2.4.lib EvaluationMex.cpp //
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+// Tested with CNTK 2.3.1, CNTK 2.4 and MATLAB R2016b, R2018a //
+////////////////////////////////////////////////////////////////
 #include <mex.h>
+#include <emlrt.h>
 #include <C:\repos\cntk\Source\CNTKv2LibraryDll\API\CNTKLibrary.h>
 
-//#define MATLAB_R2018a
+#if defined(EMLRT_VERSION_INFO) && EMLRT_VERSION_INFO >= 0x2018a
+	#define MATLAB_R2018a
+#endif
 
 uint32_t times_called = 0;
 CNTK::FunctionPtr modelFuncPtr = NULL;
@@ -22,7 +18,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     //##################################################
 	//#              Get input parameters              #
 	//##################################################
-
+	
 	// Input parameter: Images
 	#ifdef MATLAB_R2018a
 	uint8_t *inImage = mxGetUint8s(prhs[0]);
