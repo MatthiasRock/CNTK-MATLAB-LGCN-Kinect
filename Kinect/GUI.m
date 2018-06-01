@@ -22,7 +22,7 @@ function varargout = GUI(varargin)
 
 % Edit the above text to modify the response to help GUI
 
-% Last Modified by GUIDE v2.5 31-May-2018 20:42:55
+% Last Modified by GUIDE v2.5 01-Jun-2018 09:57:32
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -406,3 +406,21 @@ function checkbox6_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 setappdata(handles.figure1,'show_Landmarks',get(handles.checkbox6,'Value'));
+
+
+% --- Executes during object creation, after setting all properties.
+function figure1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+
+% --- Executes when figure1 is resized.
+function figure1_SizeChangedFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+figure_size = getpixelposition(handles.figure1);
+set(handles.pushbutton6,'Position',[figure_size(3)-95,figure_size(4)-25,95,25]);
+set(handles.uipanel5,'Position',[figure_size(3)-185,figure_size(4)-520,185,485]);
