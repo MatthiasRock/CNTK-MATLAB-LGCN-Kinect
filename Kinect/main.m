@@ -14,8 +14,6 @@ function main(Handles)
     ShowFramerate       = true;
     ShowBoundingBoxes   = true;
     
-    img_size = [1080,1920,3];
-
     % If this function is not called from the GUI
     if nargin == 0
         Handle_Figure   = figure;
@@ -56,6 +54,7 @@ function main(Handles)
     % Create Kinect 2 object and initialize it
     k2 = Kin2('color','HDface');
     
+    img_size        = [1080,1920,3];
     max_numFaces    = 6;
     init_numImages  = 2*MaxMinibatchSize;
     
@@ -385,4 +384,5 @@ function main(Handles)
     end
     k2.delete;              % Delete Kinect object
     delete(p);              % Delete parallel pool
+    clear EvaluationMex
 end
