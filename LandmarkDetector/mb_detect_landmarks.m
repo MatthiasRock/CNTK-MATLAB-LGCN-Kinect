@@ -8,7 +8,7 @@
 function [landmarks,varargout] = mb_detect_landmarks(Images,BBoxes,ModelFitting,ShowResults,MaxMinibatchSize)
     %% Initialization
 
-    t1 = tic;
+    t1 = tic; 
     
     % Static variables
     persistent PrintFramerate;
@@ -28,7 +28,6 @@ function [landmarks,varargout] = mb_detect_landmarks(Images,BBoxes,ModelFitting,
     persistent bbox_max;
     persistent padding_pre;
     persistent padding_post;
-    persistent img_size_padded;
     persistent scale_factor;
     persistent pred;
     persistent image_size;
@@ -53,10 +52,8 @@ function [landmarks,varargout] = mb_detect_landmarks(Images,BBoxes,ModelFitting,
         ModelPath           = fullfile(CurrentPath,ModelFileName);
         ImgResizeTo         = [96 96];  % Height and width must be the same
         nLandmarks          = 68;
-        default_padding     = 200;
+        default_padding     = [200 200];
         grey_color          = 127;
-        image_size          = size(Images(:,:,1));
-        padded_image        = grey_color*ones([image_size+2*default_padding,1],'uint8');
         number_all_samples 	= 0;
         time_all_samples	= zeros(1,6);
         current_framerates  = zeros(1,6);
@@ -66,16 +63,11 @@ function [landmarks,varargout] = mb_detect_landmarks(Images,BBoxes,ModelFitting,
         bbox_max            = zeros(max_minibatch_size,2);
         padding_pre         = zeros(max_minibatch_size,2);
         padding_post        = zeros(max_minibatch_size,2);
-        img_size_padded     = zeros(max_minibatch_size,2);
         scale_factor        = zeros(max_minibatch_size);
         pred                = zeros([ImgResizeTo,nLandmarks,max_minibatch_size]);
     end
     
-    % If the image size has changed
-    if size(Images(:,:,1)) ~= image_size
-        image_size    	= size(Images(:,:,1));
-        padded_image	= grey_color*ones([image_size+2*default_padding,1],'uint8');
-    end
+    image_size = size(Images(:,:,1));
     
     % If the maximum minibatch size has changed
     if MaxMinibatchSize ~= max_minibatch_size
@@ -85,7 +77,6 @@ function [landmarks,varargout] = mb_detect_landmarks(Images,BBoxes,ModelFitting,
         bbox_max            = zeros(max_minibatch_size,2);
         padding_pre         = zeros(max_minibatch_size,2);
         padding_post        = zeros(max_minibatch_size,2);
-        img_size_padded     = zeros(max_minibatch_size,2);
         scale_factor        = zeros(max_minibatch_size);
         pred                = zeros([ImgResizeTo,nLandmarks,max_minibatch_size]);
     end
@@ -130,26 +121,25 @@ function [landmarks,varargout] = mb_detect_landmarks(Images,BBoxes,ModelFitting,
     padding_pre     = max(0,1 - bbox_min);
     padding_post  	= max(0,bbox_max - flip(image_size));
     
-    bbox_min        = bbox_min + padding_pre;
-    bbox_max        = bbox_max + padding_pre;
+    % If the default padding is too small for any image
+    if any(any(padding_pre > default_padding)) || any(any(padding_post > default_padding))
+        padding = [max(max(padding_pre(:,1)),max(padding_post(:,1))),max(max(padding_pre(:,2)),max(padding_post(:,2)))];
+    else
+    	padding = default_padding;
+    end
     
-    img_size_padded = padding_pre + padding_post + flip(image_size);
-    scale_factor    = (bbox_max(:,2) - bbox_min(:,2) + 1)/ImgResizeTo(1);
+    % Grey padding of images | Images(:,:,1:minibatch_size) is slower
+    padded_image = padarray(Images,flip(padding),grey_color);
 
     % Crop and resize all images
     for k = 1:minibatch_size
-        
-        % If the default array for the padded image is too small
-        if img_size_padded > flip(size(padded_image))
-           padded_image = grey_color*ones(img_size_padded(2),img_size_padded(1),1,'uint8'); 
-        end
-        
-        % Grey padding of the image
-        padded_image(padding_pre(k,2)+1:img_size_padded(k,2)-padding_post(k,2),padding_pre(k,1)+1:img_size_padded(k,1)-padding_post(k,1),:) = Images(:,:,k);
-
-        % Crop and scale image
-        images_processed(:,:,k) = imresize(padded_image(bbox_min(k,2):bbox_max(k,2),bbox_min(k,1):bbox_max(k,1),:),ImgResizeTo);
+        images_processed(:,:,k) = imresize(padded_image(bbox_min(k,2)+padding:bbox_max(k,2)+padding,bbox_min(k,1)+padding:bbox_max(k,1)+padding,k),ImgResizeTo);
     end
+    
+    bbox_min	= bbox_min + padding_pre;
+    bbox_max	= bbox_max + padding_pre;
+    
+    scale_factor = (bbox_max(:,2) - bbox_min(:,2) + 1)/ImgResizeTo(1);
     
     t = toc(t2);
     current_framerates(2) = minibatch_size/t;
