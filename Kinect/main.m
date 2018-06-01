@@ -60,6 +60,7 @@ function main(Handles)
     
     buf_size        = 2*MaxMinibatchSize;
     buf1_img        = zeros([img_size,buf_size],'uint8');
+    buf1_imgGray    = zeros([img_size(1),img_size(2),1,buf_size],'uint8');
     buf1_imgInfo    = zeros(buf_size,1,'uint8');
     buf1_bboxes     = zeros(max_numFaces,3,buf_size);
     buf1_numFaces   = zeros(1,buf_size);
@@ -116,11 +117,12 @@ function main(Handles)
     
     % Copy data into buffer
     for im = 1:init_numImages
-       	buf1_img(:,:,:,buf1_indexPush)  = test_img;
-        buf1_bboxes(1,:,buf1_indexPush) = test_bbox;
-        buf1_imgInfo(buf1_indexPush)    = 1;
-    	buf1_numFaces(buf1_indexPush)   = 1;
-        buf1_time(buf1_indexPush)       = tic;
+       	buf1_img(:,:,:,buf1_indexPush)      = test_img;
+        buf1_imgGray(:,:,:,buf1_indexPush)  = rgb2gray(test_img);
+        buf1_bboxes(1,:,buf1_indexPush)     = test_bbox;
+        buf1_imgInfo(buf1_indexPush)        = 1;
+    	buf1_numFaces(buf1_indexPush)       = 1;
+        buf1_time(buf1_indexPush)           = tic;
         
         buf1_indexPush  = mod(buf1_indexPush,buf_size) + 1;
      	buf1_numElem  	= buf1_numElem + 1; 
@@ -163,7 +165,8 @@ function main(Handles)
             image = k2.getColor;
 
             % Store current frame in buffer
-            buf1_img(:,:,:,buf1_indexPush) = image;
+            buf1_img(:,:,:,buf1_indexPush)      = image;
+            buf1_imgGray(:,:,:,buf1_indexPush)  = rgb2gray(image);
 
             % Get the HDfaces data
             faces = k2.getHDFaces('WithVertices','true'); 
@@ -255,7 +258,7 @@ function main(Handles)
                 
                 % If there is an image in the buffer with a face
                 if ~isempty(index_ImgWithFace)
-                    F = parfeval(p,@data2minibatch,2,buf1_img(:,:,:,index_ImgWithFace),buf1_bboxes(:,:,index_ImgWithFace),buf1_numFaces(index_ImgWithFace),minibatch_size,MaxMinibatchSize,buf_size,max_numFaces,getappdata(Handle_Figure,'enable_ModelFitting'),false);
+                    F = parfeval(p,@data2minibatch,2,buf1_imgGray(:,:,:,index_ImgWithFace),buf1_bboxes(:,:,index_ImgWithFace),buf1_numFaces(index_ImgWithFace),minibatch_size,MaxMinibatchSize,buf_size,max_numFaces,getappdata(Handle_Figure,'enable_ModelFitting'),false);
                     buf1_imgInfo(index_ImgWithFace) = 0;
                     faceImg_inProg = faceImg_inProg + numel(index_ImgWithFace);
                 % If there are now several noface images in turn (avoids blocking)
@@ -267,7 +270,7 @@ function main(Handles)
         else
             % If there is an image in the buffer with a face
             if ~isempty(index_ImgWithFace)
-                F = parfeval(p,@data2minibatch,2,buf1_img(:,:,:,index_ImgWithFace),buf1_bboxes(:,:,index_ImgWithFace),buf1_numFaces(index_ImgWithFace),minibatch_size,MaxMinibatchSize,buf_size,max_numFaces,getappdata(Handle_Figure,'enable_ModelFitting') ,false);
+                F = parfeval(p,@data2minibatch,2,buf1_imgGray(:,:,:,index_ImgWithFace),buf1_bboxes(:,:,index_ImgWithFace),buf1_numFaces(index_ImgWithFace),minibatch_size,MaxMinibatchSize,buf_size,max_numFaces,getappdata(Handle_Figure,'enable_ModelFitting') ,false);
                 buf1_imgInfo(index_ImgWithFace) = 0;
                 faceImg_inProg = faceImg_inProg + numel(index_ImgWithFace);
             end
