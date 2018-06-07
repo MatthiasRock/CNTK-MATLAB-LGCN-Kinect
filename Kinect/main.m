@@ -8,7 +8,7 @@ function main(Handles)
     % You can change this
     MiniBatchSize       = 8;      	% Minibatch size for landmark detection with CNTK
   	bbox_scale_factor   = 1.17;     % Scale factor of Kinect tight bounding box
-    MaxIntBBoxes        = 2;        % Numer of frames where the bounding box is interpolated when the Kinect does not detect it anymore
+    MaxExtBBoxes        = 2;        % Numer of frames where the bounding box is extrapolated when the Kinect does not detect it anymore
     ModelFitting        = false;
     ShowLandmarks       = true;
     ShowKinectLMs       = false;
@@ -26,7 +26,7 @@ function main(Handles)
         setappdata(Handle_Figure,'show_framerates',     ShowFramerate);
         setappdata(Handle_Figure,'show_BoundingBoxes',  ShowBoundingBoxes);
         setappdata(Handle_Figure,'bboxes_ScaleFactor',  bbox_scale_factor);
-        setappdata(Handle_Figure,'maxIntBBoxes',        MaxIntBBoxes);
+        setappdata(Handle_Figure,'maxExtBBoxes',        MaxExtBBoxes);
         setappdata(Handle_Figure,'minibatchSize',       MiniBatchSize);
         MaxMinibatchSize = MiniBatchSize;
        
@@ -57,7 +57,7 @@ function main(Handles)
     default_padding	= [200 200];
     grey_color    	= 127;
     ImgResizeTo   	= [96 96];
-    numIntBBoxes    = zeros(1,max_numFaces);
+    numExtBBoxes    = zeros(1,max_numFaces);
     
     buf1_size       = 2*MaxMinibatchSize;
     buf1_img        = zeros([img_size,buf1_size],'uint8');
@@ -84,6 +84,7 @@ function main(Handles)
     
     noface_inTurn   = 0;
     numFrames       = 0;
+    frame_delay     = 0.95;
     
     framerate_EntireSubFunction = 0;
     framerate_CNTK              = 0;
@@ -149,16 +150,18 @@ function main(Handles)
         end
         
         % Determine if the current frame from the kinect shall be processed
-        if toc(t2) >= 0.85/(framerate_current+1)
+        if toc(t2) >= frame_delay/(framerate_current+1)
             t2 = tic;
             process_frame = true;
+            pause_interval = 0.007;
         else
             process_frame = false;
+            pause_interval = 0.0001;
         end
 
         %% Fill buffer with data
         
-        if buf1_numElem < 2*minibatch_size && process_frame %&& buf2_numElem < 2*minibatch_size
+        if process_frame && buf1_numElem < 2*minibatch_size %&& buf2_numElem < 2*minibatch_size
             
             % Until a valid frame was acquired
             while ~k2.updateData, end
@@ -176,57 +179,80 @@ function main(Handles)
             % Get the HDfaces data
             faces = k2.getHDFaces('WithVertices','true'); 
 
-            j = 0;
-            numKinFaces = size(faces,2);
-            
-            maxIntBBoxes = getappdata(Handle_Figure,'maxIntBBoxes');
+            numFaces = 0;
                 
-            % For all faces
-            for fa = 1:max_numFaces
+            % For all Kinect faces
+            for fa = 1:size(faces,2)
 
-                % If this bounding box is provided by the Kinect AND if the size of the bounding box is not zero
-                if fa <= numKinFaces && (faces(fa).FaceBox(3)-faces(fa).FaceBox(1) ~= 0 || faces(fa).FaceBox(4)-faces(fa).FaceBox(2) ~= 0)
-                    j = j + 1;
-
-                    buf1_kinFaces{buf1_indexPush}(j) = faces(fa);
-
-                    % Determine tight bounding box of the face
-                    bbox_tight_min  = [faces(fa).FaceBox(1),faces(fa).FaceBox(2)];
-                    bbox_tight_max  = [faces(fa).FaceBox(3),faces(fa).FaceBox(4)];
-                    bbox_tight_size = bbox_tight_max - bbox_tight_min;
-
-                    % Get squared scaled bounding box
-                    bbox_center     = (bbox_tight_min + bbox_tight_max)/2;
-                    bbox_size       = ceil(getappdata(Handle_Figure,'bboxes_ScaleFactor')*max(bbox_tight_size));
-                    bbox_size_half  = bbox_size/2;
-                    bbox_min        = floor(bbox_center - bbox_size_half);
-                    bbox_max        = bbox_min + bbox_size;
-                    
-                    numIntBBoxes(fa) = 0;
-                % If this bounding box is not provided by the Kinect
-                else
-                    % If there are at least two valid images in the buffer
-                    if buf1_numElem >= 2 && numIntBBoxes(fa) < maxIntBBoxes 
-                        index_prev1 = mod(buf1_indexPush-2,buf1_size) + 1;
-                        index_prev2 = mod(buf1_indexPush-3,buf1_size) + 1;
-                        % If this bounding box was already provided by the previous two images
-                        if buf1_numFaces(index_prev1) >= fa && buf1_numFaces(index_prev2) >= fa
-                            bbox_size 	= ceil((buf1_bboxes(fa,3,index_prev1) + buf1_bboxes(fa,3,index_prev2))/2);
-                            bbox_min  	= ceil((buf1_bboxes(fa,1:2,index_prev1) + buf1_bboxes(fa,1:2,index_prev2))/2);
-                            j = j + 1;
-
-                            buf1_kinFaces{buf1_indexPush}(j) = buf1_kinFaces{index_prev1}(fa);
-                            numIntBBoxes(fa) = numIntBBoxes(fa) + 1;
-                        else
-                            continue;
-                        end
-                    else
-                        continue;
-                    end
+                % If the size of the bounding box is zero
+                if faces(fa).FaceBox(3)-faces(fa).FaceBox(1) == 0 || faces(fa).FaceBox(4)-faces(fa).FaceBox(2) == 0
+                    continue;
                 end
                 
-                buf1_bboxes(j,:,buf1_indexPush) = [bbox_min,bbox_size];
+                numFaces = numFaces + 1;
+
+                buf1_kinFaces{buf1_indexPush}(numFaces) = faces(fa);
+
+                % Determine tight bounding box of the face
+                bbox_tight_min  = [faces(fa).FaceBox(1),faces(fa).FaceBox(2)];
+                bbox_tight_max  = [faces(fa).FaceBox(3),faces(fa).FaceBox(4)];
+                bbox_tight_size = bbox_tight_max - bbox_tight_min;
+
+                % Get squared scaled bounding box
+                bbox_center     = (bbox_tight_min + bbox_tight_max)/2;
+                bbox_size       = ceil(getappdata(Handle_Figure,'bboxes_ScaleFactor')*max(bbox_tight_size));
+                bbox_size_half  = bbox_size/2;
+                bbox_min        = floor(bbox_center - bbox_size_half);
                 
+                buf1_bboxes(numFaces,:,buf1_indexPush) = [bbox_min,bbox_size];
+
+                numExtBBoxes(numFaces) = 0;
+            end
+            
+            maxExtBBoxes = getappdata(Handle_Figure,'maxExtBBoxes');
+                    
+            % For all other possible faces
+            for fa = numFaces+1:max_numFaces
+                % If there are at least two valid images in the buffer
+                if buf1_numElem >= 2 && numExtBBoxes(fa) < maxExtBBoxes 
+                    index_prev1 = mod(buf1_indexPush-2,buf1_size) + 1;
+                    index_prev2 = mod(buf1_indexPush-3,buf1_size) + 1;
+                    % If this bounding box was already provided by the previous two images
+                    if fa <= buf1_numFaces(index_prev1) && fa <= buf1_numFaces(index_prev2)
+                        % Extrapolate bounding box
+                        ext_factor = 1;
+                        bbox_center_prev1 = buf1_bboxes(fa,1:2,index_prev1) + buf1_bboxes(fa,3,index_prev1)/2;
+                        bbox_center_prev2 = buf1_bboxes(fa,1:2,index_prev2) + buf1_bboxes(fa,3,index_prev2)/2;
+
+                        bbox_size	= ceil((1+ext_factor)*buf1_bboxes(fa,3,index_prev1)-ext_factor*buf1_bboxes(fa,3,index_prev2));
+                        bbox_min  	= ceil((1+ext_factor)*bbox_center_prev1-ext_factor*bbox_center_prev2-bbox_size/2);
+
+                        % If the extrapolated bounding box is not useful
+                        if bbox_size < 20 || bbox_size > 800 || any(bbox_min < -100) || bbox_min(1)+bbox_size > 2020 || bbox_min(2)+bbox_size > 1180
+                            break;
+                        end
+
+                        buf1_kinFaces{buf1_indexPush}(fa) = buf1_kinFaces{index_prev1}(fa);
+                        numExtBBoxes(fa) = numExtBBoxes(fa) + 1;
+
+                        buf1_bboxes(fa,:,buf1_indexPush) = [bbox_min,bbox_size];
+                        
+                        numFaces = numFaces + 1;
+                    else
+                        break;
+                    end
+                else
+                    break;
+                end
+            end
+            
+            % For all bounding boxes
+            for fa = 1:numFaces
+            
+                bbox_min    = buf1_bboxes(fa,1:2,buf1_indexPush);
+                bbox_size   = buf1_bboxes(fa,3,buf1_indexPush);
+                bbox_max    = bbox_min + bbox_size;
+
                 % Grey padding
                 padding_pre     = max(0,1 - bbox_min);
                 padding_post  	= max(0,bbox_max - img_size([2,1]));
@@ -244,13 +270,11 @@ function main(Handles)
                 % Crop and resize image
                 buf2_faces(:,:,buf2_indexPush) = imresize(padded_image(bbox_min(2)+padding(2):bbox_max(2)+padding(2),bbox_min(1)+padding(1):bbox_max(1)+padding(1)),ImgResizeTo);
 
-                buf1_scaleFactor(j,buf1_indexPush) = (bbox_size + 1)/ImgResizeTo(1);
-    
+                buf1_scaleFactor(fa,buf1_indexPush) = (bbox_size + 1)/ImgResizeTo(1);
+
                 buf2_indexPush  = mod(buf2_indexPush,buf2_size) + 1;
                 buf2_numElem  	= buf2_numElem + 1;
             end
-
-            numFaces = j;
 
             % If there is no face
             if numFaces < 1
@@ -318,7 +342,7 @@ function main(Handles)
         
         % If the buffer is not full OR if the frame shall not be processed
         if buf1_numElem < 2*minibatch_size || ~process_frame
-            pause(0.007)
+            pause(pause_interval)
             continue;
         end
             
@@ -418,7 +442,7 @@ function main(Handles)
             buf1_numElem  = buf1_numElem - 1;
         end
         numFrames = numFrames + 1;
-        pause(0.007)
+        pause(pause_interval)
     end
     
     if isvalid(Handle_Figure)
