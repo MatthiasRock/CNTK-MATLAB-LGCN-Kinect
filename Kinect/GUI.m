@@ -90,7 +90,7 @@ setappdata(handles.figure1,'show_KinLandmarks',get(handles.checkbox2,'Value'));
 setappdata(handles.figure1,'show_framerates',get(handles.checkbox5,'Value'));
 setappdata(handles.figure1,'show_BoundingBoxes',get(handles.checkbox3,'Value'));
 setappdata(handles.figure1,'bboxes_ScaleFactor',str2double(get(handles.edit1,'String')));
-setappdata(handles.figure1,'maxIntBBoxes',floor(str2double(get(handles.edit3,'String'))));
+setappdata(handles.figure1,'maxExtBBoxes',floor(str2double(get(handles.edit3,'String'))));
 
 main(handles);
 
@@ -387,21 +387,21 @@ function edit3_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of edit3 as text
 %        str2double(get(hObject,'String')) returns contents of edit3 as a double
 
-maxIntBBoxes = str2double(get(handles.edit3,'String'));
+maxExtBBoxes = str2double(get(handles.edit3,'String'));
 
-if isnan(maxIntBBoxes)
-    maxIntBBoxes = 2;
+if isnan(maxExtBBoxes)
+    maxExtBBoxes = 2;
 else
-    maxIntBBoxes = floor(maxIntBBoxes);
+    maxExtBBoxes = floor(maxExtBBoxes);
 end
 
-if maxIntBBoxes < 0
-    maxIntBBoxes = 0;
-elseif maxIntBBoxes > 50
-    maxIntBBoxes = 50;
+if maxExtBBoxes < 0
+    maxExtBBoxes = 0;
+elseif maxExtBBoxes > 50
+    maxExtBBoxes = 50;
 end
-set(handles.edit3,'String',sprintf('%d',maxIntBBoxes));
-setappdata(handles.figure1,'maxIntBBoxes',maxIntBBoxes);
+set(handles.edit3,'String',sprintf('%d',maxExtBBoxes));
+setappdata(handles.figure1,'maxExtBBoxes',maxExtBBoxes);
 
 
 % --- Executes during object creation, after setting all properties
@@ -423,21 +423,21 @@ function pushbutton7_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-maxIntBBoxes = str2double(get(handles.edit3,'String'));
+maxExtBBoxes = str2double(get(handles.edit3,'String'));
 
-if isnan(maxIntBBoxes)
-    maxIntBBoxes = 2;
+if isnan(maxExtBBoxes)
+    maxExtBBoxes = 2;
 else
-    maxIntBBoxes = floor(maxIntBBoxes) + 1;
+    maxExtBBoxes = floor(maxExtBBoxes) + 1;
 end
 
-if maxIntBBoxes < 0
-    maxIntBBoxes = 0;
-elseif maxIntBBoxes > 50
-    maxIntBBoxes = 50;
+if maxExtBBoxes < 0
+    maxExtBBoxes = 0;
+elseif maxExtBBoxes > 50
+    maxExtBBoxes = 50;
 end
-set(handles.edit3,'String',sprintf('%d',maxIntBBoxes));
-setappdata(handles.figure1,'maxIntBBoxes',maxIntBBoxes);
+set(handles.edit3,'String',sprintf('%d',maxExtBBoxes));
+setappdata(handles.figure1,'maxExtBBoxes',maxExtBBoxes);
 
 
 % --- Executes on button press in pushbutton8 (decrease number of interpolated bounding boxes)
@@ -446,18 +446,18 @@ function pushbutton8_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-maxIntBBoxes = str2double(get(handles.edit3,'String'));
+maxExtBBoxes = str2double(get(handles.edit3,'String'));
 
-if isnan(maxIntBBoxes)
-    maxIntBBoxes = 2;
+if isnan(maxExtBBoxes)
+    maxExtBBoxes = 2;
 else
-    maxIntBBoxes = floor(maxIntBBoxes) - 1;
+    maxExtBBoxes = floor(maxExtBBoxes) - 1;
 end
 
-if maxIntBBoxes < 0
-    maxIntBBoxes = 0;
-elseif maxIntBBoxes > 50
-    maxIntBBoxes = 50;
+if maxExtBBoxes < 0
+    maxExtBBoxes = 0;
+elseif maxExtBBoxes > 50
+    maxExtBBoxes = 50;
 end
-set(handles.edit3,'String',sprintf('%d',maxIntBBoxes));
-setappdata(handles.figure1,'maxIntBBoxes',maxIntBBoxes);
+set(handles.edit3,'String',sprintf('%d',maxExtBBoxes));
+setappdata(handles.figure1,'maxExtBBoxes',maxExtBBoxes);
