@@ -355,16 +355,18 @@ function main(Handles)
                 set(c.im,'CData',image);    % Show current image
 
                 info_initText.String = '';
+                
+                numFaces = buf1_numFaces(buf1_indexPop);
 
                 % If we want to show the framerates
                 if getappdata(Handle_Figure,'show_framerates')
-                    info_framerates.String = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s\nEntire subfunction: %.1f Frames/s\nCNTK: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current,framerate_EntireSubFunction,framerate_CNTK);
+                    info_framerates.String = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s\nEntire subfunction: %.1f Frames/s\nCNTK: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current,framerate_EntireSubFunction/numFaces,framerate_CNTK/numFaces);
                 else
                     info_framerates.String = '';
                 end
 
                 % For all faces
-                for fa = 1:buf1_numFaces(buf1_indexPop)
+                for fa = 1:numFaces
 
                     % If the bounding boxes shall be displayed
                     if getappdata(Handle_Figure,'show_BoundingBoxes')
