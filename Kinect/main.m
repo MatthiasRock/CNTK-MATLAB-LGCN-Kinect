@@ -8,6 +8,7 @@ function main(Handles)
     % You can change this
     MiniBatchSize       = 8;      	% Minibatch size for landmark detection with CNTK
   	bbox_scale_factor   = 1.17;     % Scale factor of Kinect tight bounding box
+    MaxIntBBoxes        = 2;        % Numer of frames where the bounding box is interpolated when the Kinect does not detect it anymore
     ModelFitting        = false;
     ShowLandmarks       = true;
     ShowKinectLMs       = false;
@@ -25,9 +26,10 @@ function main(Handles)
         setappdata(Handle_Figure,'show_framerates',     ShowFramerate);
         setappdata(Handle_Figure,'show_BoundingBoxes',  ShowBoundingBoxes);
         setappdata(Handle_Figure,'bboxes_ScaleFactor',  bbox_scale_factor);
+        setappdata(Handle_Figure,'maxIntBBoxes',        MaxIntBBoxes);
         setappdata(Handle_Figure,'minibatchSize',       MiniBatchSize);
         MaxMinibatchSize = MiniBatchSize;
-        
+       
         % Figure initialization
         set(Handle_Axes,'Unit','normalized','Position',[0 0 1 1]);            % Set the axes to full screen
         set(Handle_Figure,'menubar','none');                                  % Hide the toolbar
@@ -55,6 +57,7 @@ function main(Handles)
     default_padding	= [200 200];
     grey_color    	= 127;
     ImgResizeTo   	= [96 96];
+    numIntBBoxes    = zeros(1,max_numFaces);
     
     buf1_size       = 2*MaxMinibatchSize;
     buf1_img        = zeros([img_size,buf1_size],'uint8');
@@ -80,6 +83,7 @@ function main(Handles)
     buf3_numElem    = 0;
     
     noface_inTurn   = 0;
+    numFrames       = 0;
     
     framerate_EntireSubFunction = 0;
     framerate_CNTK              = 0;
@@ -134,8 +138,11 @@ function main(Handles)
     while isvalid(Handle_Figure)      
         %% Framerate
         
+        if numFrames < 1
+            framerate_current   = 20;
+            t1                  = tic;
         % Determine the current framerate
-        if toc(t1) >= 0.5
+        elseif toc(t1) >= 1
             framerate_current	= frames_per_time/toc(t1);
             frames_per_time     = 0;
             t1                  = tic;
@@ -170,29 +177,53 @@ function main(Handles)
             faces = k2.getHDFaces('WithVertices','true'); 
 
             j = 0;
+            numKinFaces = size(faces,2);
+            
+            maxIntBBoxes = getappdata(Handle_Figure,'maxIntBBoxes');
                 
             % For all faces
-            for fa = 1:size(faces,2)
+            for fa = 1:max_numFaces
 
-                % If the size of the bounding box is zero
-                if faces(fa).FaceBox(3)-faces(fa).FaceBox(1) == 0 || faces(fa).FaceBox(4)-faces(fa).FaceBox(2) == 0
-                    continue;
+                % If this bounding box is provided by the Kinect AND if the size of the bounding box is not zero
+                if fa <= numKinFaces && (faces(fa).FaceBox(3)-faces(fa).FaceBox(1) ~= 0 || faces(fa).FaceBox(4)-faces(fa).FaceBox(2) ~= 0)
+                    j = j + 1;
+
+                    buf1_kinFaces{buf1_indexPush}(j) = faces(fa);
+
+                    % Determine tight bounding box of the face
+                    bbox_tight_min  = [faces(fa).FaceBox(1),faces(fa).FaceBox(2)];
+                    bbox_tight_max  = [faces(fa).FaceBox(3),faces(fa).FaceBox(4)];
+                    bbox_tight_size = bbox_tight_max - bbox_tight_min;
+
+                    % Get squared scaled bounding box
+                    bbox_center     = (bbox_tight_min + bbox_tight_max)/2;
+                    bbox_size       = ceil(getappdata(Handle_Figure,'bboxes_ScaleFactor')*max(bbox_tight_size));
+                    bbox_size_half  = bbox_size/2;
+                    bbox_min        = floor(bbox_center - bbox_size_half);
+                    bbox_max        = bbox_min + bbox_size;
+                    
+                    numIntBBoxes(fa) = 0;
+                % If this bounding box is not provided by the Kinect
+                else
+                    % If there are at least two valid images in the buffer
+                    if buf1_numElem >= 2 && numIntBBoxes(fa) < maxIntBBoxes 
+                        index_prev1 = mod(buf1_indexPush-2,buf1_size) + 1;
+                        index_prev2 = mod(buf1_indexPush-3,buf1_size) + 1;
+                        % If this bounding box was already provided by the previous two images
+                        if buf1_numFaces(index_prev1) >= fa && buf1_numFaces(index_prev2) >= fa
+                            bbox_size 	= ceil((buf1_bboxes(fa,3,index_prev1) + buf1_bboxes(fa,3,index_prev2))/2);
+                            bbox_min  	= ceil((buf1_bboxes(fa,1:2,index_prev1) + buf1_bboxes(fa,1:2,index_prev2))/2);
+                            j = j + 1;
+
+                            buf1_kinFaces{buf1_indexPush}(j) = buf1_kinFaces{index_prev1}(fa);
+                            numIntBBoxes(fa) = numIntBBoxes(fa) + 1;
+                        else
+                            continue;
+                        end
+                    else
+                        continue;
+                    end
                 end
-                j = j + 1;
-
-                buf1_kinFaces{buf1_indexPush}(j) = faces(fa);
-
-                % Determine tight bounding box of the face
-                bbox_tight_min  = [faces(fa).FaceBox(1),faces(fa).FaceBox(2)];
-                bbox_tight_max  = [faces(fa).FaceBox(3),faces(fa).FaceBox(4)];
-                bbox_tight_size = bbox_tight_max - bbox_tight_min;
-
-                % Get squared scaled bounding box
-                bbox_center     = (bbox_tight_min + bbox_tight_max)/2;
-                bbox_size       = ceil(getappdata(Handle_Figure,'bboxes_ScaleFactor')*max(bbox_tight_size));
-                bbox_size_half  = bbox_size/2;
-                bbox_min        = floor(bbox_center - bbox_size_half);
-                bbox_max        = bbox_min + bbox_size;
                 
                 buf1_bboxes(j,:,buf1_indexPush) = [bbox_min,bbox_size];
                 
@@ -270,8 +301,6 @@ function main(Handles)
                 numLastImages   = minibatch_size;
                 buf2_numElem    = buf2_numElem - minibatch_size;
             % Avoid blocking
-            %elseif buf2_numElem > 0 && (noface_inTurn > 5 || buf1_numElem == 2*minibatch_size)
-            %elseif faceImg_inProg > 0 && (noface_inTurn > 5 || (buf1_numElem == 2*minibatch_size && sum(buf1_numFaces) < minibatch_size))
             elseif buf2_numElem > 0 && (noface_inTurn > 5 || buf3_numElem < buf1_numFaces(buf1_indexPop))
                 
                 indices = buf2_indexPop:buf2_indexPop+buf2_numElem-1;
@@ -289,7 +318,7 @@ function main(Handles)
         
         % If the buffer is not full OR if the frame shall not be processed
         if buf1_numElem < 2*minibatch_size || ~process_frame
-            pause(0.01)
+            pause(0.007)
             continue;
         end
             
@@ -388,7 +417,8 @@ function main(Handles)
             buf1_indexPop = mod(buf1_indexPop,buf1_size) + 1;
             buf1_numElem  = buf1_numElem - 1;
         end
-        pause(0.01)
+        numFrames = numFrames + 1;
+        pause(0.007)
     end
     
     if isvalid(Handle_Figure)

@@ -22,7 +22,7 @@ function varargout = GUI(varargin)
 
 % Edit the above text to modify the response to help GUI
 
-% Last Modified by GUIDE v2.5 01-Jun-2018 09:57:32
+% Last Modified by GUIDE v2.5 07-Jun-2018 11:23:23
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -76,7 +76,7 @@ function varargout = GUI_OutputFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % You can change this
-minibatch_size = 3;
+minibatch_size = 8;
 setappdata(handles.figure1,'MaxMinibatchSize',minibatch_size);
 set(handles.uipanel4,'Visible','off');  % Comment this if you want to see the minibatch size panel
 
@@ -90,34 +90,12 @@ setappdata(handles.figure1,'show_KinLandmarks',get(handles.checkbox2,'Value'));
 setappdata(handles.figure1,'show_framerates',get(handles.checkbox5,'Value'));
 setappdata(handles.figure1,'show_BoundingBoxes',get(handles.checkbox3,'Value'));
 setappdata(handles.figure1,'bboxes_ScaleFactor',str2double(get(handles.edit1,'String')));
+setappdata(handles.figure1,'maxIntBBoxes',floor(str2double(get(handles.edit3,'String'))));
 
 main(handles);
 
 % Get default command line output from handles structure
 varargout{1} = handles.output;
-
-% --- Executes on button press in pushbutton1.
-function pushbutton1_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-axes(handles.axes1);
-cla;
-
-popup_sel_index = get(handles.popupmenu1, 'Value');
-switch popup_sel_index
-    case 1
-        plot(rand(5));
-    case 2
-        plot(sin(1:0.01:25.99));
-    case 3
-        bar(1:.5:10);
-    case 4
-        plot(membrane);
-    case 5
-        surf(peaks);
-end
 
 
 % --------------------------------------------------------------------
@@ -159,32 +137,7 @@ end
 delete(handles.figure1)
 
 
-% --- Executes on selection change in popupmenu1.
-function popupmenu1_Callback(hObject, eventdata, handles)
-% hObject    handle to popupmenu1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = get(hObject,'String') returns popupmenu1 contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from popupmenu1
-
-
-% --- Executes during object creation, after setting all properties.
-function popupmenu1_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to popupmenu1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-     set(hObject,'BackgroundColor','white');
-end
-
-set(hObject, 'String', {'plot(rand(5))', 'plot(sin(1:0.01:25))', 'bar(1:.5:10)', 'plot(membrane)', 'surf(peaks)'});
-
-
-% --- Executes on button press in pushbutton4.
+% --- Executes on button press in pushbutton4 (decrease minibatch size)
 function pushbutton4_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton4 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -208,7 +161,7 @@ set(handles.edit2,'String',sprintf('%d',minibatch_size));
 setappdata(handles.figure1,'minibatchSize',minibatch_size);
 
 
-% --- Executes on button press in pushbutton5.
+% --- Executes on button press in pushbutton5 (increase minibatch size)
 function pushbutton5_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -231,7 +184,7 @@ end
 set(handles.edit2,'String',sprintf('%d',minibatch_size));
 setappdata(handles.figure1,'minibatchSize',minibatch_size);
 
-
+% Minibatch size
 function edit2_Callback(hObject, eventdata, handles)
 % hObject    handle to edit2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -255,7 +208,7 @@ set(handles.edit2,'String',sprintf('%d',minibatch_size));
 setappdata(handles.figure1,'minibatchSize',minibatch_size);
 
 
-% --- Executes during object creation, after setting all properties.
+% --- Executes during object creation, after setting all properties (minibatch size)
 function edit2_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to edit2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -268,7 +221,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in checkbox3.
+% --- Executes on button press in checkbox3 (show bounding boxes)
 function checkbox3_Callback(hObject, eventdata, handles)
 % hObject    handle to checkbox3 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -277,7 +230,7 @@ function checkbox3_Callback(hObject, eventdata, handles)
 setappdata(handles.figure1,'show_BoundingBoxes',get(handles.checkbox3,'Value'));
 
 
-% --- Executes on button press in pushbutton2.
+% --- Executes on button press in pushbutton2 (decrease bounding box size)
 function pushbutton2_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -300,7 +253,7 @@ set(handles.edit1,'String',sprintf('%.2f',scale_factor));
 setappdata(handles.figure1,'bboxes_ScaleFactor',scale_factor);
 
 
-% --- Executes on button press in pushbutton3.
+% --- Executes on button press in pushbutton3 (increase bounding box size)
 function pushbutton3_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton3 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -323,7 +276,7 @@ set(handles.edit1,'String',sprintf('%.2f',scale_factor));
 setappdata(handles.figure1,'bboxes_ScaleFactor',scale_factor);
 
 
-% (Bounding boxes scale factor)
+% Bounding boxes scale factor
 function edit1_Callback(hObject, eventdata, handles)
 % hObject    handle to edit1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -344,7 +297,7 @@ set(handles.edit1,'String',sprintf('%.2f',scale_factor));
 setappdata(handles.figure1,'bboxes_ScaleFactor',scale_factor);
 
 
-% --- Executes during object creation, after setting all properties.
+% --- Executes during object creation, after setting all properties (bounding boxes scale factor)
 function edit1_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to edit1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -357,7 +310,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in checkbox2. (Show Kinect landmarks)
+% --- Executes on button press in checkbox2 (show Kinect landmarks)
 function checkbox2_Callback(hObject, eventdata, handles)
 % hObject    handle to checkbox2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -366,7 +319,7 @@ function checkbox2_Callback(hObject, eventdata, handles)
 setappdata(handles.figure1,'show_KinLandmarks',get(handles.checkbox2,'Value'));
 
 
-% --- Executes on button press in checkbox1. (Enable model fitting)
+% --- Executes on button press in checkbox1 (enable model fitting)
 function checkbox1_Callback(hObject, eventdata, handles)
 % hObject    handle to checkbox1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -375,7 +328,7 @@ function checkbox1_Callback(hObject, eventdata, handles)
 setappdata(handles.figure1,'enable_ModelFitting',get(handles.checkbox1,'Value'));
 
 
-% --- Executes on button press in pushbutton6. (Show Settings)
+% --- Executes on button press in pushbutton6 (show Settings)
 function pushbutton6_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton6 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -390,7 +343,7 @@ else
     set(handles.pushbutton6,'String','Hide Settings');
 end
 
-% --- Executes on button press in checkbox5. (Show framerate & delay)
+% --- Executes on button press in checkbox5 (show framerates & delay)
 function checkbox5_Callback(hObject, eventdata, handles)
 % hObject    handle to checkbox5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -399,7 +352,7 @@ function checkbox5_Callback(hObject, eventdata, handles)
 setappdata(handles.figure1,'show_framerates',get(handles.checkbox5,'Value'));
 
 
-% --- Executes on button press in checkbox6.
+% --- Executes on button press in checkbox6 (show landmarks)
 function checkbox6_Callback(hObject, eventdata, handles)
 % hObject    handle to checkbox6 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -423,4 +376,88 @@ function figure1_SizeChangedFcn(hObject, eventdata, handles)
 
 figure_size = getpixelposition(handles.figure1);
 set(handles.pushbutton6,'Position',[figure_size(3)-95,figure_size(4)-25,95,25]);
-set(handles.uipanel5,'Position',[figure_size(3)-185,figure_size(4)-520,185,485]);
+set(handles.uipanel5,'Position',[figure_size(3)-185,figure_size(4)-580,185,545]);
+
+% Number of interpolated bounding boxes
+function edit3_Callback(hObject, eventdata, handles)
+% hObject    handle to edit3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit3 as text
+%        str2double(get(hObject,'String')) returns contents of edit3 as a double
+
+maxIntBBoxes = str2double(get(handles.edit3,'String'));
+
+if isnan(maxIntBBoxes)
+    maxIntBBoxes = 2;
+else
+    maxIntBBoxes = floor(maxIntBBoxes);
+end
+
+if maxIntBBoxes < 0
+    maxIntBBoxes = 0;
+elseif maxIntBBoxes > 50
+    maxIntBBoxes = 50;
+end
+set(handles.edit3,'String',sprintf('%d',maxIntBBoxes));
+setappdata(handles.figure1,'maxIntBBoxes',maxIntBBoxes);
+
+
+% --- Executes during object creation, after setting all properties
+function edit3_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in pushbutton7 (increase number of interpolated bounding boxes)
+function pushbutton7_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+maxIntBBoxes = str2double(get(handles.edit3,'String'));
+
+if isnan(maxIntBBoxes)
+    maxIntBBoxes = 2;
+else
+    maxIntBBoxes = floor(maxIntBBoxes) + 1;
+end
+
+if maxIntBBoxes < 0
+    maxIntBBoxes = 0;
+elseif maxIntBBoxes > 50
+    maxIntBBoxes = 50;
+end
+set(handles.edit3,'String',sprintf('%d',maxIntBBoxes));
+setappdata(handles.figure1,'maxIntBBoxes',maxIntBBoxes);
+
+
+% --- Executes on button press in pushbutton8 (decrease number of interpolated bounding boxes)
+function pushbutton8_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton8 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+maxIntBBoxes = str2double(get(handles.edit3,'String'));
+
+if isnan(maxIntBBoxes)
+    maxIntBBoxes = 2;
+else
+    maxIntBBoxes = floor(maxIntBBoxes) - 1;
+end
+
+if maxIntBBoxes < 0
+    maxIntBBoxes = 0;
+elseif maxIntBBoxes > 50
+    maxIntBBoxes = 50;
+end
+set(handles.edit3,'String',sprintf('%d',maxIntBBoxes));
+setappdata(handles.figure1,'maxIntBBoxes',maxIntBBoxes);
