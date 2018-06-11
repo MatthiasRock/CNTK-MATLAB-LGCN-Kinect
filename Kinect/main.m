@@ -8,7 +8,8 @@ function main(Handles)
     % You can change this
     MiniBatchSize       = 8;      	% Minibatch size for landmark detection with CNTK
   	bbox_scale_factor   = 1.17;     % Scale factor of Kinect tight bounding box
-    MaxExtBBoxes        = 2;        % Numer of frames where the bounding box is extrapolated when the Kinect does not detect it anymore
+    MaxExtBBoxes        = 2;        % Numer of frames where the bounding box is extrapolated when the Kinect does not detect the face anymore
+    extra_frames        = 0;        % Extra frames for the buffer
     ModelFitting        = false;
     ShowLandmarks       = true;
     ShowKinectLMs       = false;
@@ -59,7 +60,7 @@ function main(Handles)
     ImgResizeTo   	= [96 96];
     numExtBBoxes    = zeros(1,max_numFaces);
     
-    buf1_size       = 2*MaxMinibatchSize;
+    buf1_size       = 2*MaxMinibatchSize+extra_frames;
     buf1_img        = zeros([img_size,buf1_size],'uint8');
     buf1_bboxes     = zeros(max_numFaces,3,buf1_size);
     buf1_scaleFactor= zeros(max_numFaces,buf1_size);
@@ -84,7 +85,7 @@ function main(Handles)
     
     noface_inTurn   = 0;
     numFrames       = 0;
-    frame_delay     = 0.95;
+    frame_delay     = 0.93;
     
     framerate_EntireSubFunction = 0;
     framerate_CNTK              = 0;
@@ -135,6 +136,7 @@ function main(Handles)
     
     t1 = tic;
     t2 = t1;
+    t3 = t1;
 
     while isvalid(Handle_Figure)      
         %% Framerate
@@ -148,20 +150,12 @@ function main(Handles)
             frames_per_time     = 0;
             t1                  = tic;
         end
-        
-        % Determine if the current frame from the kinect shall be processed
-        if toc(t2) >= frame_delay/(framerate_current+1)
-            t2 = tic;
-            process_frame = true;
-            pause_interval = 0.007;
-        else
-            process_frame = false;
-            pause_interval = 0.0001;
-        end
 
         %% Fill buffer with data
         
-        if process_frame && buf1_numElem < 2*minibatch_size %&& buf2_numElem < 2*minibatch_size
+        if buf1_numElem < 2*minibatch_size+extra_frames && toc(t2) >= frame_delay/(framerate_current+1)
+            
+            t2 = tic;
             
             % Until a valid frame was acquired
             while ~k2.updateData, end
@@ -340,111 +334,113 @@ function main(Handles)
 
         %% Show output
         
-        % If the buffer is not full OR if the frame shall not be processed
-        if buf1_numElem < 2*minibatch_size || ~process_frame
-            pause(pause_interval)
-            continue;
-        end
+        % If the buffer is full AND if the frame shall be processed
+        if buf1_numElem >= 2*minibatch_size && toc(t3) >= frame_delay/(framerate_current+1)
             
-        % If a face was detected on the current buffered frame
-        if buf1_numFaces(buf1_indexPop) > 0
-            % If the landmarks of this frame have already been detected
-            if buf3_numElem >= buf1_numFaces(buf1_indexPop)
-                image = buf1_img(:,:,:,buf1_indexPop);
+            t3 = tic;
+            
+            % If a face was detected on the current buffered frame
+            if buf1_numFaces(buf1_indexPop) > 0
+                % If the landmarks of this frame have already been detected
+                if buf3_numElem >= buf1_numFaces(buf1_indexPop)
+                    image = buf1_img(:,:,:,buf1_indexPop);
 
-                set(c.im,'CData',image);    % Show current image
+                    set(c.im,'CData',image);    % Show current image
 
-                info_initText.String = '';
-                
-                numFaces = buf1_numFaces(buf1_indexPop);
+                    info_initText.String = '';
+
+                    numFaces = buf1_numFaces(buf1_indexPop);
+
+                    % If we want to show the framerates
+                    if getappdata(Handle_Figure,'show_framerates')
+                        info_framerates.String = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s\nEntire subfunction: %.1f Frames/s\nCNTK: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current,framerate_EntireSubFunction/numFaces,framerate_CNTK/numFaces);
+                    else
+                        info_framerates.String = '';
+                    end
+
+                    % For all faces
+                    for fa = 1:numFaces
+
+                        % If the bounding boxes shall be displayed
+                        if getappdata(Handle_Figure,'show_BoundingBoxes')
+                            bbox = buf1_bboxes(fa,:,buf1_indexPop);
+                            h_rect{fa}.Position = [bbox(1),bbox(2),bbox(3),bbox(3)];
+                        else
+                            h_rect{fa}.Position = [0,0,0,0];
+                        end
+
+                        % If the Kinect landmarks shall be displayed
+                        if getappdata(Handle_Figure,'show_KinLandmarks') 
+                            model = buf1_kinFaces{buf1_indexPop}(fa).FaceModel;
+                            colorCoords = k2.mapCameraPoints2Color(model');
+                            h_landmarksKin{fa}.XData = colorCoords(:,1);
+                            h_landmarksKin{fa}.YData = colorCoords(:,2);
+                        else
+                            h_landmarksKin{fa}.XData = 0;
+                            h_landmarksKin{fa}.YData = 0;
+                        end
+
+                        % If the landmarks shall be displayed
+                        if getappdata(Handle_Figure,'show_Landmarks') 
+
+                            % Backtransformation of the coordinates
+                            landmarks = buf3_landmarks(:,:,buf3_indexPop)*buf1_scaleFactor(fa,buf1_indexPop) + buf1_bboxes(fa,1:2,buf1_indexPop) - 1;
+
+                            h_landmarks{fa}.XData = landmarks(:,1);
+                            h_landmarks{fa}.YData = landmarks(:,2);
+                        else
+                            h_landmarks{fa}.XData = 0;
+                            h_landmarks{fa}.YData = 0;
+                        end
+                        buf3_indexPop = mod(buf3_indexPop,buf3_size) + 1;
+                        buf3_numElem  = buf3_numElem - 1;
+                    end
+
+                    % Hide bounding boxes and faces for all of the other possible faces
+                    for fa = fa+1:max_numFaces
+                        h_rect{fa}.Position = [0,0,0,0];
+                        h_landmarksKin{fa}.XData = 0;
+                        h_landmarksKin{fa}.YData = 0;
+                        h_landmarks{fa}.XData = 0;
+                        h_landmarks{fa}.YData = 0;
+                    end
+                    frames_per_time = frames_per_time + 1;
+
+                    buf1_numFaces(buf1_indexPop) = 0;
+                    buf1_indexPop = mod(buf1_indexPop,buf1_size) + 1;
+                    buf1_numElem  = buf1_numElem - 1;
+                end
+            % If no face was detected on the current frame
+            else
+                set(c.im,'CData',buf1_img(:,:,:,buf1_indexPop));
+                frames_per_time = frames_per_time + 1;
+
+                info_initText.String    = '';
 
                 % If we want to show the framerates
                 if getappdata(Handle_Figure,'show_framerates')
-                    info_framerates.String = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s\nEntire subfunction: %.1f Frames/s\nCNTK: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current,framerate_EntireSubFunction/numFaces,framerate_CNTK/numFaces);
+                    info_framerates.String  = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current);
                 else
                     info_framerates.String = '';
                 end
 
-                % For all faces
-                for fa = 1:numFaces
-
-                    % If the bounding boxes shall be displayed
-                    if getappdata(Handle_Figure,'show_BoundingBoxes')
-                        bbox = buf1_bboxes(fa,:,buf1_indexPop);
-                        h_rect{fa}.Position = [bbox(1),bbox(2),bbox(3),bbox(3)];
-                    else
-                        h_rect{fa}.Position = [0,0,0,0];
-                    end
-
-                    % If the Kinect landmarks shall be displayed
-                    if getappdata(Handle_Figure,'show_KinLandmarks') 
-                        model = buf1_kinFaces{buf1_indexPop}(fa).FaceModel;
-                        colorCoords = k2.mapCameraPoints2Color(model');
-                        h_landmarksKin{fa}.XData = colorCoords(:,1);
-                        h_landmarksKin{fa}.YData = colorCoords(:,2);
-                    else
-                        h_landmarksKin{fa}.XData = 0;
-                        h_landmarksKin{fa}.YData = 0;
-                    end
-
-                    % If the landmarks shall be displayed
-                    if getappdata(Handle_Figure,'show_Landmarks') 
-
-                        % Backtransformation of the coordinates
-                        landmarks = buf3_landmarks(:,:,buf3_indexPop)*buf1_scaleFactor(fa,buf1_indexPop) + buf1_bboxes(fa,1:2,buf1_indexPop) - 1;
-
-                        h_landmarks{fa}.XData = landmarks(:,1);
-                        h_landmarks{fa}.YData = landmarks(:,2);
-                    else
-                        h_landmarks{fa}.XData = 0;
-                        h_landmarks{fa}.YData = 0;
-                    end
-                    buf3_indexPop = mod(buf3_indexPop,buf3_size) + 1;
-                    buf3_numElem  = buf3_numElem - 1;
-                end
-
-                % Hide bounding boxes and faces for all of the other possible faces
-                for fa = fa+1:max_numFaces
+                % Hide bounding boxes and faces for all of the possible faces
+                for fa = 1:max_numFaces
                     h_rect{fa}.Position = [0,0,0,0];
                     h_landmarksKin{fa}.XData = 0;
                     h_landmarksKin{fa}.YData = 0;
                     h_landmarks{fa}.XData = 0;
                     h_landmarks{fa}.YData = 0;
                 end
-                frames_per_time = frames_per_time + 1;
 
-                buf1_numFaces(buf1_indexPop) = 0;
                 buf1_indexPop = mod(buf1_indexPop,buf1_size) + 1;
                 buf1_numElem  = buf1_numElem - 1;
             end
-        % If no face was detected on the current frame
+            numFrames = numFrames + 1;
+            pause(0.007);
         else
-            set(c.im,'CData',buf1_img(:,:,:,buf1_indexPop));
-            frames_per_time = frames_per_time + 1;
-
-            info_initText.String    = '';
-
-            % If we want to show the framerates
-            if getappdata(Handle_Figure,'show_framerates')
-                info_framerates.String  = sprintf('Current delay: %.1f Seconds\nCurrent framerate: %.1f Frames/s',toc(buf1_time(buf1_indexPop)),framerate_current);
-            else
-                info_framerates.String = '';
-            end
-
-            % Hide bounding boxes and faces for all of the possible faces
-            for fa = 1:max_numFaces
-                h_rect{fa}.Position = [0,0,0,0];
-                h_landmarksKin{fa}.XData = 0;
-                h_landmarksKin{fa}.YData = 0;
-                h_landmarks{fa}.XData = 0;
-                h_landmarks{fa}.YData = 0;
-            end
-
-            buf1_indexPop = mod(buf1_indexPop,buf1_size) + 1;
-            buf1_numElem  = buf1_numElem - 1;
+            pause(0.0001);
         end
-        numFrames = numFrames + 1;
-        pause(pause_interval)
     end
     
     if isvalid(Handle_Figure)
