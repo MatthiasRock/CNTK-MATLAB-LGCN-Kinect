@@ -58,8 +58,6 @@ function [landmarks,framerates] = mb_detect_landmarks(Images,ModelFitting,MaxMin
     
     %% Landmark Extraction
     
-    pred(pred<0) = 0;
-    
     landmarks = zeros(nLandmarks,2,minibatch_size);
 
     % Compute global maximum per heatmap (no sub-pixel accuracy!)
@@ -75,7 +73,8 @@ function [landmarks,framerates] = mb_detect_landmarks(Images,ModelFitting,MaxMin
     
     % Perform PCA based model fitting
     if ModelFitting
-        landmarks = pca_improve_landmarks(pred(:,:,:,1:minibatch_size),landmarks);
+        pred(pred<0) = 0;
+        landmarks    = pca_improve_landmarks(pred(:,:,:,1:minibatch_size),landmarks);
     end
     
     t = toc(t1);
