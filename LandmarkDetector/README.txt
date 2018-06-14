@@ -1,5 +1,5 @@
 Subfunctions for the facial landmark detection with a Kinect camera
-
+https://github.com/MatthiasRock/CNTK-MATLAB-LGCN-Kinect
 
 ### General Information
 
@@ -16,7 +16,7 @@ Tested with:
 	
 ### MEX compilation
 
-For compilation see the details in "EvaluationMex.cpp".
+For compilation use the script "compile_cpp_files.m". Maybe you have to change the paths inside this file.
 
 
 ### Model Fitting

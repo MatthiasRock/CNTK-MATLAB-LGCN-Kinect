@@ -1,4 +1,5 @@
 Detect facial landmarks in Kinect (V2) frames with a trained CNTK network in MATLAB
+https://github.com/MatthiasRock/CNTK-MATLAB-LGCN-Kinect
 
 
 ### General Information
@@ -10,6 +11,8 @@ Details of the LGCN network can be found in:
 Daniel Merget, Matthias Rock, Gerhard Rigoll: "Robust Facial Landmark Detection via a Fully-Convolutional Local-Global Context Network". In: Proceedings of the International Conference on Computer Vision and Pattern Recognition (CVPR), IEEE, 2018.
 
 See also: http://www.mmk.ei.tum.de/cvpr2018/
+
+CNTK Python network: https://github.com/MatthiasRock/CNTK-PY-LGCN
 
 
 ### Setup Information
@@ -32,10 +35,3 @@ Citation:
 If you find this toolbox useful please cite:
 Terven Juan, Cordova-Esparza Diana,  Kin2. A Kinect 2 Toolbox for MATLAB, 
 Science of Computer Programming, 2016, http://dx.doi.org/10.1016/j.scico.2016.05.009
-
-
-### Test image
-
-The data stored in "test_img.mat" is from the FaceGrabber database:
-
-D. Merget, T. Eckl, M. Schwörer, P. Tiefenbacher, and G. Rigoll, "Capturing Facial Videos with Kinect 2.0: A Multithreaded Open Source Tool and Database", in Proc. WACV, IEEE, 2016. 
