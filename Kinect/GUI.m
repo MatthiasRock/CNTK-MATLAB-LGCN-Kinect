@@ -22,7 +22,7 @@ function varargout = GUI(varargin)
 
 % Edit the above text to modify the response to help GUI
 
-% Last Modified by GUIDE v2.5 07-Jun-2018 11:23:23
+% Last Modified by GUIDE v2.5 14-Jun-2018 11:02:16
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -88,6 +88,7 @@ setappdata(handles.figure1,'enable_ModelFitting',get(handles.checkbox1,'Value'))
 setappdata(handles.figure1,'show_Landmarks',get(handles.checkbox6,'Value'));
 setappdata(handles.figure1,'show_KinLandmarks',get(handles.checkbox2,'Value'));
 setappdata(handles.figure1,'show_framerates',get(handles.checkbox5,'Value'));
+setappdata(handles.figure1,'mirror_images',get(handles.checkbox7,'Value'));
 setappdata(handles.figure1,'show_BoundingBoxes',get(handles.checkbox3,'Value'));
 setappdata(handles.figure1,'bboxes_ScaleFactor',str2double(get(handles.edit1,'String')));
 setappdata(handles.figure1,'maxExtBBoxes',floor(str2double(get(handles.edit3,'String'))));
@@ -376,7 +377,7 @@ function figure1_SizeChangedFcn(hObject, eventdata, handles)
 
 figure_size = getpixelposition(handles.figure1);
 set(handles.pushbutton6,'Position',[figure_size(3)-95,figure_size(4)-25,95,25]);
-set(handles.uipanel5,'Position',[figure_size(3)-185,figure_size(4)-580,185,545]);
+set(handles.uipanel5,'Position',[figure_size(3)-185,figure_size(4)-620,185,585]);
 
 % Number of interpolated bounding boxes
 function edit3_Callback(hObject, eventdata, handles)
@@ -461,3 +462,13 @@ elseif maxExtBBoxes > 50
 end
 set(handles.edit3,'String',sprintf('%d',maxExtBBoxes));
 setappdata(handles.figure1,'maxExtBBoxes',maxExtBBoxes);
+
+
+% --- Executes on button press in checkbox7.
+function checkbox7_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox7
+setappdata(handles.figure1,'mirror_images',get(handles.checkbox7,'Value'));

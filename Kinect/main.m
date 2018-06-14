@@ -14,6 +14,7 @@ function main(Handles)
     ShowLandmarks       = true;
     ShowKinectLMs       = false;
     ShowFramerate       = true;
+    MirrorImages        = false;
     ShowBoundingBoxes   = true;
     
     % If this function is not called from the GUI
@@ -25,12 +26,13 @@ function main(Handles)
         setappdata(Handle_Figure,'show_Landmarks',      ShowLandmarks);
         setappdata(Handle_Figure,'show_KinLandmarks',   ShowKinectLMs);
         setappdata(Handle_Figure,'show_framerates',     ShowFramerate);
+        setappdata(Handle_Figure,'mirror_images',       MirrorImages);
         setappdata(Handle_Figure,'show_BoundingBoxes',  ShowBoundingBoxes);
         setappdata(Handle_Figure,'bboxes_ScaleFactor',  bbox_scale_factor);
         setappdata(Handle_Figure,'maxExtBBoxes',        MaxExtBBoxes);
         setappdata(Handle_Figure,'minibatchSize',       MiniBatchSize);
         MaxMinibatchSize = MiniBatchSize;
-       
+      
         % Figure initialization
         set(Handle_Axes,'Unit','normalized','Position',[0 0 1 1]);            % Set the axes to full screen
         set(Handle_Figure,'menubar','none');                                  % Hide the toolbar
@@ -183,6 +185,9 @@ function main(Handles)
                     continue;
                 end
                 
+                % Uncomment the for loop if you want to add the bounding box multiple times (for debugging multiple faces with only one face available)
+                %for x = 1:3
+                
                 numFaces = numFaces + 1;
 
                 buf1_kinFaces{buf1_indexPush}(numFaces) = faces(fa);
@@ -197,10 +202,12 @@ function main(Handles)
                 bbox_size       = ceil(getappdata(Handle_Figure,'bboxes_ScaleFactor')*max(bbox_tight_size));
                 bbox_size_half  = bbox_size/2;
                 bbox_min        = floor(bbox_center - bbox_size_half);
-                
+
                 buf1_bboxes(numFaces,:,buf1_indexPush) = [bbox_min,bbox_size];
 
                 numExtBBoxes(numFaces) = 0;
+                
+                %end
             end
             
             maxExtBBoxes = getappdata(Handle_Figure,'maxExtBBoxes');
@@ -343,9 +350,13 @@ function main(Handles)
             if buf1_numFaces(buf1_indexPop) > 0
                 % If the landmarks of this frame have already been detected
                 if buf3_numElem >= buf1_numFaces(buf1_indexPop)
-                    image = buf1_img(:,:,:,buf1_indexPop);
-
-                    set(c.im,'CData',image);    % Show current image
+                    
+                    % If the image shall be mirrored
+                    if getappdata(Handle_Figure,'mirror_images')
+                        set(c.im,'CData',fliplr(buf1_img(:,:,:,buf1_indexPop)));
+                    else
+                        set(c.im,'CData',buf1_img(:,:,:,buf1_indexPop));
+                    end
 
                     info_initText.String = '';
 
@@ -364,7 +375,13 @@ function main(Handles)
                         % If the bounding boxes shall be displayed
                         if getappdata(Handle_Figure,'show_BoundingBoxes')
                             bbox = buf1_bboxes(fa,:,buf1_indexPop);
-                            h_rect{fa}.Position = [bbox(1),bbox(2),bbox(3),bbox(3)];
+                         
+                            % If the image shall be mirrored
+                            if getappdata(Handle_Figure,'mirror_images')
+                                h_rect{fa}.Position = [img_size(2)-(bbox(1)+bbox(3))+1,bbox(2),bbox(3),bbox(3)];
+                            else
+                                h_rect{fa}.Position = [bbox(1),bbox(2),bbox(3),bbox(3)];
+                            end
                         else
                             h_rect{fa}.Position = [0,0,0,0];
                         end
@@ -373,7 +390,13 @@ function main(Handles)
                         if getappdata(Handle_Figure,'show_KinLandmarks') 
                             model = buf1_kinFaces{buf1_indexPop}(fa).FaceModel;
                             colorCoords = k2.mapCameraPoints2Color(model');
-                            h_landmarksKin{fa}.XData = colorCoords(:,1);
+                            
+                            % If the image shall be mirrored
+                            if getappdata(Handle_Figure,'mirror_images')
+                                h_landmarksKin{fa}.XData = img_size(2)-colorCoords(:,1)+1;
+                            else
+                                h_landmarksKin{fa}.XData = colorCoords(:,1);
+                            end
                             h_landmarksKin{fa}.YData = colorCoords(:,2);
                         else
                             h_landmarksKin{fa}.XData = 0;
@@ -386,7 +409,13 @@ function main(Handles)
                             % Backtransformation of the coordinates
                             landmarks = buf3_landmarks(:,:,buf3_indexPop)*buf1_scaleFactor(fa,buf1_indexPop) + buf1_bboxes(fa,1:2,buf1_indexPop) - 1;
 
-                            h_landmarks{fa}.XData = landmarks(:,1);
+                            % If the image shall be mirrored
+                            if getappdata(Handle_Figure,'mirror_images')
+                                h_landmarks{fa}.XData = img_size(2)-landmarks(:,1)+1;
+                            else
+                                h_landmarks{fa}.XData = landmarks(:,1);
+                            end
+                            
                             h_landmarks{fa}.YData = landmarks(:,2);
                         else
                             h_landmarks{fa}.XData = 0;
@@ -412,7 +441,12 @@ function main(Handles)
                 end
             % If no face was detected on the current frame
             else
-                set(c.im,'CData',buf1_img(:,:,:,buf1_indexPop));
+                % If the image shall be mirrored
+                if getappdata(Handle_Figure,'mirror_images')
+                    set(c.im,'CData',fliplr(buf1_img(:,:,:,buf1_indexPop)));
+                else
+                    set(c.im,'CData',buf1_img(:,:,:,buf1_indexPop));
+                end
                 frames_per_time = frames_per_time + 1;
 
                 info_initText.String    = '';
